@@ -1,0 +1,7 @@
+{
+  "protocol": "calgacus/1",
+  "model": "Qwen/Qwen2.5-1.5B",
+  "stegotext": " Hindered ten times from undertaking his great endeavors, surely he was doomed to disintegration, yet through a combination of determination and providal he was able not once but constantly",
+  "stego_token_ids_b64": "tXABAJMWAADfCwAA+AEAAGK8AAAmAwAAxAgAANEyAQALAAAA/lMAADYCAAA8AgAAJeEAADcBAAA7AwAACOsAAAsAAAASDgAA9gUAAAgBAABpKQAAOwEAAKBiAABDAQAACwgAABYBAAA2AgAAPAIAAIgLAAAZAgAA7wsAAMoCAAB7OgAA",
+  "n_tokens": 33
+}

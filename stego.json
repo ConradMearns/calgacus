@@ -1,0 +1,7 @@
+{
+  "protocol": "calgacus/1",
+  "model": "Qwen/Qwen2.5-1.5B",
+  "stegotext": " Date this delicious delicvey for four Thursday night and enjoy with happy friends.\n1. Preheat air",
+  "stego_token_ids_b64": "RwoAAKMBAAADRgAAOgYAACQBAADxFQAAcQEAAOALAAByHgAAkQ4AAEMBAAA9EgAAwAEAAGcYAACsEgAAcAIAABAAAAANAAAAaBMAAPtNAACIDgAA",
+  "n_tokens": 21
+}
