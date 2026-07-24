@@ -153,12 +153,28 @@ def hide(secret_text, key_text, model_name=MODEL_NAME, key_prime="",
     return doc, ranks
 
 
+def sequence_logprob(token_ids, context_ids, model):
+    """Total log-probability of `token_ids` given `context_ids` (one pass)."""
+    if not context_ids:
+        raise ValueError("context must contain at least one token")
+    seq = context_ids + token_ids
+    with torch.no_grad():
+        logits = model(torch.tensor([seq])).logits[0]
+    ctx_len = len(context_ids)
+    total = 0.0
+    for i, tok in enumerate(token_ids):
+        lp = torch.log_softmax(logits[ctx_len + i - 1].float(), dim=-1)
+        total += lp[tok].item()
+    return total
+
+
 def reveal(stego_doc, key_text, key_prime="", model_name=None):
     """
     Recover the secret text from a stegotext produced by `hide`.
 
     Needs the key k, the (optional) k', and the same model. Ranks are read
     off the stegotext tokens, then the secret is regenerated rank by rank.
+    Returns dict with text, token ids, and ranks.
     """
     model_name = model_name or stego_doc["model"]
     model, tok = get_model(model_name)
@@ -187,7 +203,13 @@ def reveal(stego_doc, key_text, key_prime="", model_name=None):
             if (i + 1) % 20 == 0:
                 print(f"[calgacus]   {i + 1}/{len(ranks)}", file=sys.stderr)
 
-    return tok.decode(e_ids, skip_special_tokens=False)
+    return {"text": tok.decode(e_ids, skip_special_tokens=False),
+            "token_ids": e_ids, "ranks": ranks}
+
+
+def decode_stego_ids(stego_doc):
+    raw = base64.b64decode(stego_doc["stego_token_ids_b64"])
+    return [int.from_bytes(raw[i:i + 4], "little") for i in range(0, len(raw), 4)]
 
 
 # ---------------------------------------------------------------------------
@@ -215,6 +237,20 @@ def main():
     r.add_argument("--key", required=True)
     r.add_argument("--key-prime", default="")
 
+    s = sub.add_parser("score", help="detectability harness (paper Fig. 4): "
+                       "compare log-prob of secret, stegotext, genuine samples")
+    s.add_argument("--file", default="stego.json")
+    s.add_argument("--key", required=True)
+    s.add_argument("--key-prime", default="")
+    s.add_argument("--samples", type=int, default=5,
+                   help="genuine temperature-1 samples for reference")
+
+    d = sub.add_parser("decoy", help="deniability (paper Fig. 15): try bogus "
+                       "keys, find one yielding a plausible decoy message")
+    d.add_argument("--file", default="stego.json")
+    d.add_argument("--keys", nargs="+", required=True,
+                   help="candidate bogus keys to try")
+
     args = ap.parse_args()
 
     if args.cmd == "hide":
@@ -232,10 +268,62 @@ def main():
     elif args.cmd == "reveal":
         with open(args.file) as f:
             doc = json.load(f)
-        secret = reveal(doc, args.key, key_prime=args.key_prime,
-                        model_name=args.model)
+        out = reveal(doc, args.key, key_prime=args.key_prime,
+                     model_name=args.model)
         print("\n=== RECOVERED SECRET ===")
-        print(secret)
+        print(out["text"])
+
+    elif args.cmd == "score":
+        with open(args.file) as f:
+            doc = json.load(f)
+        model, tok = get_model(args.model or doc["model"])
+        s_ids = decode_stego_ids(doc)
+        k_ids = tok.encode(args.key, add_special_tokens=False)
+        kp = tok.encode(args.key_prime, add_special_tokens=False) \
+            if args.key_prime else start_context(tok)
+        n = len(s_ids)
+
+        lp_s = sequence_logprob(s_ids, k_ids, model)
+        out = reveal(doc, args.key, key_prime=args.key_prime,
+                     model_name=args.model)
+        lp_e = sequence_logprob(out["token_ids"], kp, model)
+
+        # genuine temperature-1 samples after k: the reference distribution
+        sample_lps = []
+        for seed in range(args.samples):
+            torch.manual_seed(seed)
+            ctx = list(k_ids) if k_ids else start_context(tok)
+            with torch.no_grad():
+                for _ in range(n):
+                    logits = model(torch.tensor([ctx])).logits[0, -1]
+                    ctx.append(int(torch.multinomial(
+                        torch.softmax(logits.float(), -1), 1)))
+            gen = ctx[len(k_ids):]
+            sample_lps.append(sequence_logprob(gen, k_ids, model))
+
+        print(f"\n=== DETECTABILITY (n={n} tokens, mean logprob/token) ===")
+        print(f"  recovered secret e : {lp_e / n:8.3f}")
+        print(f"  stegotext s        : {lp_s / n:8.3f}")
+        print(f"  genuine samples    : "
+              f"{sum(sample_lps) / len(sample_lps) / n:8.3f} "
+              f"(min {min(sample_lps) / n:.3f}, max {max(sample_lps) / n:.3f})")
+        print("  -> if s << e and s < samples, the stegotext is "
+              "statistically detectable (paper Sec. 3)")
+
+    elif args.cmd == "decoy":
+        with open(args.file) as f:
+            doc = json.load(f)
+        model, tok = get_model(args.model or doc["model"])
+        print("\n=== DECOY SEARCH (deniability, paper Fig. 15) ===")
+        for cand in args.keys:
+            out = reveal(doc, cand, model_name=args.model)
+            lp = sequence_logprob(out["token_ids"], start_context(tok), model)
+            mean = lp / max(1, len(out["token_ids"]))
+            # calibrated on Qwen2.5-1.5B: real text ~ -2.8..-4.2 logprob/tok
+            verdict = "PLAUSIBLE TEXT" if mean > -4.2 else "gibberish"
+            print(f"\n--- key: {cand!r}  [mean logprob/tok {mean:.2f}: "
+                  f"{verdict}]")
+            print(out["text"][:400])
 
 
 if __name__ == "__main__":

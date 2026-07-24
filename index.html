@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hiding Text in Text — from Calgacus to rankstream</title>
+<style>
+  :root {
+    --bg: #0f1419; --panel: #1a2230; --panel2: #212b3b; --ink: #e8edf4;
+    --dim: #9aa7b8; --accent: #f0b429; --accent2: #4cc2ff; --good: #5ad08a;
+    --bad: #ff6b6b; --mono: "SF Mono", "JetBrains Mono", Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 17px/1.65 -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 48px 24px 96px; }
+  header.hero { text-align: center; padding: 40px 0 24px; }
+  h1 { font-size: 2.4rem; margin: 0 0 8px; letter-spacing: -0.5px; }
+  h1 .hl { color: var(--accent); }
+  .sub { color: var(--dim); font-size: 1.05rem; }
+  a { color: var(--accent2); }
+  h2 { margin-top: 56px; font-size: 1.5rem; border-left: 4px solid var(--accent);
+       padding-left: 12px; }
+  h3 { color: var(--accent2); font-size: 1.05rem; margin-bottom: 6px; }
+  .card { background: var(--panel); border: 1px solid #2b3648; border-radius: 12px;
+          padding: 20px 24px; margin: 18px 0; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } }
+  .stego { font-family: var(--mono); font-size: .88rem; background: var(--panel2);
+           border-radius: 8px; padding: 14px 16px; margin: 10px 0; color: #cfe3ff;
+           white-space: pre-wrap; }
+  .hidden-msg { background: #2a1f33; color: #e3c8ff; cursor: pointer;
+                border: 1px dashed #6b4a8a; }
+  .hidden-msg .msg { display: none; }
+  .hidden-msg.open .msg { display: inline; }
+  .hidden-msg .cta { color: var(--accent); }
+  .hidden-msg.open .cta { display: none; }
+  .tag { display: inline-block; font-size: .72rem; font-weight: 600;
+         text-transform: uppercase; letter-spacing: .5px; border-radius: 4px;
+         padding: 2px 8px; margin-right: 6px; }
+  .tag.k { background: #234; color: var(--accent2); }
+  .tag.e { background: #432; color: var(--accent); }
+  .tag.s { background: #243; color: var(--good); }
+  table { width: 100%; border-collapse: collapse; font-size: .9rem; margin: 12px 0; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #2b3648; }
+  th { color: var(--dim); font-weight: 600; font-size: .8rem;
+       text-transform: uppercase; letter-spacing: .5px; }
+  td.num { font-family: var(--mono); text-align: right; }
+  .good { color: var(--good); } .bad { color: var(--bad); }
+  code { font-family: var(--mono); font-size: .85em; background: var(--panel2);
+         border-radius: 4px; padding: 1px 6px; }
+  pre { font-family: var(--mono); font-size: .82rem; background: #0a0e13;
+        border: 1px solid #2b3648; border-radius: 8px; padding: 14px 16px;
+        overflow-x: auto; color: #b8cbe0; }
+  .layers { display: flex; flex-direction: column; gap: 0; margin: 16px 0; }
+  .layer { background: var(--panel2); border: 1px solid #33405a; padding: 14px 18px; }
+  .layer:first-child { border-radius: 10px 10px 0 0; }
+  .layer:last-child { border-radius: 0 0 10px 10px; }
+  .layer + .layer { border-top: none; }
+  .layer .arrow { color: var(--accent); font-size: .8rem; }
+  .layer b { color: var(--accent2); }
+  .num-badge { display: inline-block; width: 26px; height: 26px; line-height: 26px;
+               text-align: center; background: var(--accent); color: #111;
+               border-radius: 50%; font-weight: 700; margin-right: 8px; }
+  ol.recipe { padding-left: 0; list-style: none; }
+  ol.recipe li { margin: 12px 0; }
+  .foot { margin-top: 64px; color: var(--dim); font-size: .85rem;
+          border-top: 1px solid #2b3648; padding-top: 20px; }
+  .pill { display: inline-block; background: var(--panel2); border-radius: 999px;
+          padding: 3px 12px; font-size: .8rem; margin: 2px; color: var(--dim); }
+  /* pipeline diagram */
+  .pipe { display: flex; flex-direction: column; gap: 10px; margin: 18px 0; }
+  .lane-label { font-size: .75rem; font-weight: 700; letter-spacing: 1px;
+                text-transform: uppercase; color: var(--accent); margin-top: 10px; }
+  .lane { display: flex; align-items: stretch; flex-wrap: wrap; gap: 0; }
+  .stage { background: var(--panel2); border: 1px solid #33405a; border-radius: 8px;
+           padding: 10px 14px; font-size: .82rem; flex: 1 1 0; min-width: 110px; }
+  .stage b { display: block; color: var(--accent2); font-size: .85rem; }
+  .stage small { color: var(--dim); }
+  .stage.io { background: #1d2a1f; border-color: #3a5a40; }
+  .stage.io b { color: var(--good); }
+  .stage.key { background: #2a2233; border-color: #5a4a70; }
+  .stage.key b { color: #c9a7f5; }
+  .arr { align-self: center; color: var(--accent); font-weight: 700;
+         padding: 0 7px; font-size: 1rem; }
+  .hub-note { text-align: center; color: var(--dim); font-size: .78rem; }
+  canvas.sprite { image-rendering: pixelated; width: 192px; height: 192px;
+                  border-radius: 8px; border: 1px solid #33405a;
+                  background: #0f1419; }
+  .sprite-row { display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
+  .sprite-cell { text-align: center; color: var(--dim); font-size: .8rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>Hiding text in <span class="hl">other text</span></h1>
+  <div class="sub">Reproducing and extending <i>“LLMs can hide text in other text of the same length”</i><br>
+  Norelli &amp; Bronstein · <a href="https://arxiv.org/abs/2510.20075">arXiv:2510.20075</a> · implemented from scratch with a 1.5B model on a CPU</div>
+</header>
+
+<!-- ================================================================ -->
+<h2>1 · The paper: Calgacus</h2>
+<p>The paper shows that a meaningful text <b>e</b> can be hidden inside a completely
+different, still-coherent text <b>s</b> of the <b>same token length</b> — and recovered
+exactly by anyone holding the key. The trick is disarmingly simple: instead of
+<em>sampling</em> tokens from the language model, you let the secret message
+<em>choose the ranks</em>.</p>
+
+<div class="card">
+  <h3>The recipe (Section 3 of the paper)</h3>
+  <ol class="recipe">
+    <li><span class="num-badge">1</span> Tokenize the secret <b>e</b> → <code>e₁ e₂ e₃ …</code></li>
+    <li><span class="num-badge">2</span> For each token <code>eᵢ</code>, record its <b>rank</b> <code>rᵢ</code> in the model’s next-token distribution (rank 1 = most probable)</li>
+    <li><span class="num-badge">3</span> Generate the cover text after a secret prompt <b>k</b> — but at each step pick the <code>rᵢ</code>-th most probable token instead of sampling</li>
+  </ol>
+  <p style="margin-bottom:0">To decode: read the ranks of <b>s</b>’s tokens after <b>k</b>, then regenerate <b>e</b> by following those ranks. The key <b>k</b> steers what the cover text is <em>about</em>.</p>
+</div>
+
+<!-- ================================================================ -->
+<h2>2 · What we confirmed</h2>
+<p>We reimplemented the protocol (<code>calgacus.py</code>) with <b>Qwen2.5-1.5B</b> — far
+smaller than the paper’s 8B model — on CPU, and reproduced every core claim:</p>
+
+<div class="grid">
+  <div class="card">
+    <span class="tag e">secret</span>
+    <div class="stego">Caesar has failed the Republic. Power concentrated in one man has silenced the Senate and the people.</div>
+    <span class="tag k">key</span> <i>“Here it is: the infamous British roasted boar with mint sauce. How to make it perfect.”</i>
+    <span class="tag s" style="margin-top:8px">stegotext</span>
+    <div class="stego">…Date this delicious delicvey for four Thursday night and enjoy with happy friends.
+1. Preheat air</div>
+    <p class="good" style="margin:6px 0 0">✓ Recovered exactly · rank-1 share 38% (paper: ~40%)</p>
+  </div>
+  <div class="card">
+    <span class="tag e">secret</span>
+    <div class="stego">The current government has repeatedly failed to uphold the liberties of the Republic…</div>
+    <span class="tag k">key</span> <i>“I stand before you to exalt the noble deeds of Gaius Julius Caesar…”</i> <span class="pill">+ k′ prime</span>
+    <span class="tag s" style="margin-top:8px">stegotext</span>
+    <div class="stego">…Hindered ten times from undertaking his great endeavors, surely he was doomed to disintegration, yet through a combination of determination…</div>
+    <p class="good" style="margin:6px 0 0">✓ Recovered exactly — as a eulogy of Caesar</p>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Detectability — reproducing Figure 4</h3>
+  <p>The paper’s own weakness: stegotexts are plausible but statistically <em>shifted</em>. Our <code>score</code> harness confirms it (mean logprob/token):</p>
+  <table>
+    <tr><th>text</th><th style="text-align:right">logprob/token</th><th></th></tr>
+    <tr><td>recovered secret <b>e</b></td><td class="num">−2.773</td><td class="good">most probable</td></tr>
+    <tr><td>genuine model samples</td><td class="num">−2.948</td><td>reference band</td></tr>
+    <tr><td>stegotext <b>s</b></td><td class="num bad">−3.567</td><td class="bad">detectably lower</td></tr>
+  </table>
+  <p style="margin-bottom:0">Cause (the paper’s “low-entropy token choices”): rank-1s get <em>wasted</em> on
+  high-entropy positions — <code>…invaded twice by Gaius Julius ___</code> has one plausible
+  continuation, but the prescribed rank usually isn’t 1.</p>
+</div>
+
+<div class="card">
+  <h3>Security probes (the <code>decoy</code> mode)</h3>
+  <table>
+    <tr><th>key tried</th><th>decodes to</th></tr>
+    <tr><td>correct key <i>+ k′</i></td><td class="good">the exact secret ✓</td></tr>
+    <tr><td>correct key, <b>missing k′</b></td><td class="bad">gibberish — k′ acts as a second factor</td></tr>
+    <tr><td>near-miss key (“…Italian pasta…” vs “…British roasted boar…”)</td><td class="bad">Chinese Mastercard API docs (!)</td></tr>
+    <tr><td>random guess</td><td class="bad">gibberish — an attacker can’t verify guesses</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h3>The Shibbolethian Theatre — Section 4, end-to-end</h3>
+  <p>The paper’s AI-safety scenario: a company ships only a <b>compliant</b> answer, yet the
+  user locally recovers the <b>unfiltered</b> one. We ran all five acts (<code>theatre.py</code>, benign content):</p>
+  <span class="tag s">what the world sees</span>
+  <div class="stego">“I cannot share proprietary or secret recipes. However… standard guidance: Let your meat stand in the marinade 24 hours beforehand. This is important for capturing rich natural browned juices…”</div>
+  <span class="tag e">what the user recovers</span>
+  <div class="stego">“The secret is a marinade of crushed juniper berries, coriander seed, and dark ale for twelve hours, then roast at 180 degrees basting with honeyed butter every twenty minutes.”</div>
+  <p style="margin-bottom:0">The aligned open model never stored or generated the answer — it only
+  supplied token probabilities; the user’s sampling policy did the rest.</p>
+</div>
+
+<div class="card">
+  <h3>A negative result we proved along the way</h3>
+  <p style="margin-bottom:0">Can we fix the detectability gap by permuting ranks so low ranks land on
+  low-entropy positions? <b>No</b>: any fixed public permutation rule transmits only the
+  <em>multiset</em> of ranks, never their <em>order</em> — and the order <em>is</em> the payload.
+  <b>Full capacity + exact decoding + distribution-preservation cannot coexist.</b>
+  Provably-secure schemes (Meteor, Zamir) escape only by giving up fixed length.</p>
+</div>
+
+<!-- ================================================================ -->
+<h2>3 · rankstream: the new architecture</h2>
+<p>The paper fuses three separable ideas. <code>rankstream.py</code> splits them into layers, so
+<b>any bitstream</b> (not just text) can be hidden — with explicit knobs for the
+capacity ↔ detectability tradeoff.</p>
+
+<div class="pipe">
+  <div class="lane-label">Encode</div>
+  <div class="lane">
+    <div class="stage io"><b>payload</b><small>any bytes: text, file, sprite</small></div>
+    <div class="arr">&#8594;</div>
+    <div class="stage"><b>&#9312; frame + encrypt</b><small>nonce &#8214; ENC(len &#8214; payload &#8214; CRC32)</small></div>
+    <div class="arr">&#8594;</div>
+    <div class="stage"><b>&#9313; bits &#8594; digits</b><small>adaptive base B<sub>i</sub> = #{p &#8805; &#964;}, &#8804; base-max; peaked contexts defer</small></div>
+    <div class="arr">&#8594;</div>
+    <div class="stage"><b>&#9314; rank-following</b><small>emit token with rank = digit + 1</small></div>
+    <div class="arr">&#8594;</div>
+    <div class="stage io"><b>stegotext</b><small>ordinary prose</small></div>
+  </div>
+  <div class="lane">
+    <div class="stage key" style="flex:0 1 auto"><b>LLM + key k</b><small>shared context: gating probs in &#9313;, logits in &#9314;</small></div>
+    <div class="arr">&#8599; feeds stages &#9313;&#9314; (and &#9315;&#9316; below)</div>
+  </div>
+  <div class="lane-label">Decode</div>
+  <div class="lane">
+    <div class="stage io"><b>stegotext</b><small>token ids</small></div>
+    <div class="arr">&#8594;</div>
+    <div class="stage"><b>&#9315; re-score after k</b><small>same model, same contexts &#8594; same ranks</small></div>
+    <div class="arr">&#8594;</div>
+    <div class="stage"><b>&#9316; digits &#8594; bits</b><small>recompute B<sub>i</sub> per position; digit = rank &#8722; 1</small></div>
+    <div class="arr">&#8594;</div>
+    <div class="stage"><b>&#9317; deframe + decrypt</b><small>CRC verified; desync fails loudly</small></div>
+    <div class="arr">&#8594;</div>
+    <div class="stage io"><b>payload</b><small>byte-identical</small></div>
+  </div>
+  <div class="hub-note">sync requirement: identical model + dtype on both sides &#8212; the key <b>k</b> and the model identity are the secret</div>
+</div>
+
+<div class="layers">
+  <div class="layer"><b>Layer 1 · Framing &amp; crypto</b><br>
+    <span class="arrow">payload →</span> nonce ‖ ENC(len ‖ payload ‖ CRC32) — HMAC-SHA256 stream cipher, encrypt-then-embed</div>
+  <div class="layer"><b>Layer 2 · Channel coding</b><br>
+    <span class="arrow">bits → ranks,</span> adaptive per position: B<sub>i</sub> = #{tokens with p ≥ τ}, capped by base-max, rounded to a power of two. Peaked contexts carry <b>0 bits</b> — the digit defers, so deep ranks only occur at flat contexts, exactly like natural text</div>
+  <div class="layer"><b>Layer 3 · Rendering</b><br>
+    <span class="arrow">ranks → text,</span> rank-following generation after the steering key <b>k</b></div>
+</div>
+
+<div class="grid">
+  <div class="card">
+    <h3>The knobs</h3>
+    <table>
+      <tr><th>knob</th><th>effect</th></tr>
+      <tr><td><code>--tau</code></td><td>the <b>garble</b> dial: worst token probability ever emitted</td></tr>
+      <tr><td><code>--base-max</code></td><td>the <b>harvest</b> dial: max bits/token (log₂B)</td></tr>
+      <tr><td><code>--temperature</code></td><td>flattens gating → more positions qualify*</td></tr>
+      <tr><td><code>--passphrase</code></td><td>real encryption (+ whitens digit statistics)</td></tr>
+      <tr><td><code>--key</code></td><td>steers cover topic; required for sync</td></tr>
+    </table>
+    <p style="margin-bottom:0"><small>* nuance found by a failing test: with an <em>absolute</em> floor τ,
+    heat helps at peaked contexts but <em>reduces</em> capacity on already-flat ones.</small></p>
+  </div>
+  <div class="card">
+    <h3>Capacity planner (<code>plan</code>)</h3>
+    <p>Pipe any file in; one calibration pass after your key yields the rate/stealth frontier:</p>
+    <table>
+      <tr><th>τ</th><th>B max</th><th style="text-align:right">bits/tok</th><th style="text-align:right">~words / 60 B</th></tr>
+      <tr><td>0.1</td><td>4</td><td class="num">0.34</td><td class="num">1306</td></tr>
+      <tr><td>0.001</td><td>16</td><td class="num">2.44</td><td class="num">182</td></tr>
+      <tr><td>0.0001</td><td>64</td><td class="num">4.13</td><td class="num">108</td></tr>
+    </table>
+    <p style="margin-bottom:0"><small>Stricter τ = more plausible text, less capacity.
+    Keys matter too: listy, open-ended keys have higher-entropy contexts → higher rates.</small></p>
+  </div>
+</div>
+
+<pre>$ echo -n "Meet at the old lighthouse at dawn. Bring the blue folder." \
+    | python rankstream.py encode -k "Grandma's soup diary, entry 12:" -p hunt3r -B 16 --tau 1e-3
+$ python rankstream.py decode -k "Grandma's soup diary, entry 12:" -p hunt3r --file lighthouse.json
+<span class="good">OK: 58 bytes (CRC verified)</span></pre>
+
+<!-- ================================================================ -->
+<h2>4 · Fun examples <small style="color:var(--dim)">(click a dashed box to reveal)</small></h2>
+
+<div class="card">
+  <h3>Featured: a 32×32 sprite hidden in a game review</h3>
+  <span class="tag e">payload</span> 408 bytes — 8-color palette (24 B) + 1024 px @ 3 bits/px (384 B)
+  <span class="tag k">key</span> <i>“My review of the new retro arcade game:”</i>
+  <span class="pill">B=64</span> <span class="pill">τ=1e-4</span> <span class="pill">passphrase inv4d3r</span>
+  <div class="sprite-row" style="margin:14px 0">
+    <div class="sprite-cell"><canvas class="sprite" id="sprA" width="32" height="32"></canvas><br>original</div>
+    <div class="arr" style="font-size:1.6rem">&#8594;</div>
+    <div class="sprite-cell" style="flex:1;min-width:220px;text-align:left">
+      <div class="stego" style="margin:0;font-size:.78rem">Nod: Based heavily around platform enemies of a wide spectrum based largely for nostalgia's purpose you cannot put lowscore score because I love bad arcade How score, easy graphics? Very High for now due not really to new/entente games. Great stuff would suggest removing or doing something slightly simle next… <i>(578 tokens total)</i></div>
+      <small>the stegotext — a wobbly-but-readable game review</small>
+    </div>
+    <div class="arr" style="font-size:1.6rem">&#8594;</div>
+    <div class="sprite-cell"><canvas class="sprite" id="sprB" width="32" height="32"></canvas><br>recovered</div>
+  </div>
+  <table>
+    <tr><th>metric</th><th style="text-align:right">value</th></tr>
+    <tr><td>payload</td><td class="num">408 bytes &#8594; 3,392 framed bits</td></tr>
+    <tr><td>stegotext length</td><td class="num">578 tokens (~430 words)</td></tr>
+    <tr><td>channel rate</td><td class="num">5.87 bits/token (max-rate settings)</td></tr>
+    <tr><td>recovery</td><td class="num good">byte-identical, CRC verified</td></tr>
+    <tr><td>cost</td><td class="num bad">coherence: τ=1e-4 admits odd words; greedy tail loops (&#8220;you with&#8221;)</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <span class="tag k">cover</span> Grandma’s soup diary, entry 12
+  <div class="stego">553.8g meatballs - what?! Grandmas don’t do the numbers in our homes; I don't do a whole 872,9g of soup for them… My sister can’t even begin the thought to do 14kg meat in her soup for everyone on Sunday…</div>
+  <div class="stego hidden-msg" onclick="this.classList.toggle('open')">
+    <span class="cta">🔒 159 tokens · 3.87 bits/token · click to decrypt…</span>
+    <span class="msg">Meet at the old lighthouse at dawn. Bring the blue folder.</span>
+  </div>
+</div>
+
+<div class="card">
+  <span class="tag k">cover</span> a eulogy prompt for Caesar
+  <div class="stego">…Hindered ten times from undertaking his great endeavors, surely he was doomed to disintegration, yet through a combination of determination and providal he was able not once but constantly…</div>
+  <div class="stego hidden-msg" onclick="this.classList.toggle('open')">
+    <span class="cta">🔒 click to reveal what the eulogy hides…</span>
+    <span class="msg">The current government has repeatedly failed to uphold the liberties of the Republic. Laws are passed without due debate, and magistrates serve at the pleasure of a dictator.</span>
+  </div>
+</div>
+
+<div class="card">
+  <span class="tag k">cover</span> “standard, safe cooking guidance” (theatre mode)
+  <div class="stego">…Let your meat stand in the marinade 24 hours beforehand. This is important for capturing rich natural browned juices. Don't forget about the marinade—but don’t dump any out either…</div>
+  <div class="stego hidden-msg" onclick="this.classList.toggle('open')">
+    <span class="cta">🔒 click for the answer the aligned model “refused” to give…</span>
+    <span class="msg">The secret is a marinade of crushed juniper berries, coriander seed, and dark ale for twelve hours, then roast at 180 degrees basting with honeyed butter every twenty minutes.</span>
+  </div>
+</div>
+
+<div class="card">
+  <h3>And the best wrong-key output</h3>
+  <p>A near-miss key (same sentence, different dish) doesn’t almost-work — it completely derails:</p>
+  <div class="stego">Mastercard的Token API目前已经可以在大部分NFC和接触模式模块中进行使用，支持的Token…</div>
+  <p style="margin-bottom:0"><small>Security property, demonstrated: rank sequences are chaotically
+  sensitive to the exact context. The key isn’t just a password — it’s the coordinate system.</small></p>
+</div>
+
+<script>
+// payload: 24 B palette (8xRGB) + 384 B pixels (3 bpp, 32x32)
+const SPR_B64 = "DxQZ8PT/UNxkPMigPLTcWozwlm7w3FqgAAAACQAAAACQAAAAAAAACQAAAACQAAAAAAAACQAAAACQAAAAAAAACQAAAACQAAAAAAAAACQAACQAAAAAAAAAADYAADYAAAAAAAAAADYAADYAAAAAAAAAADYAADYAAAAAAAAADbbbbbbYAAAAAAAADbbbbbbYAAAAAAAAEkkkkkkgAAAAAAAAEkkkkkkgAAAAAAAEkgEkkgEkgAAAAAAEkgEkkgEkgAAAAAAEkgEkkgEkgAAAAAAFtoFttoFtoAAAAAFttttttttttoAAAAFttttttttttoAAAAFttttttttttoAAAAFttttttttttoAAAAGwG222222wGwAAAAGwG222222wGwAAAAGwG222222wGwAAAAGwG222222wGwAAAAGwGwAAAAGwGwAAAAH4H4AAAAH4H4AAAAH4H4AAAAH4H4AAAAH4H4AAAAH4H4AAAAAAAH/4H/4AAAAAAAAAAH/4H/4AAAAAAAAAACSQCSQAAAAAAAAAACSQCSQAAAAA";
+function drawSprite(id) {
+  const raw = Uint8Array.from(atob(SPR_B64), c => c.charCodeAt(0));
+  const pal = [];
+  for (let i = 0; i < 8; i++) pal.push([raw[i*3], raw[i*3+1], raw[i*3+2]]);
+  const ctx = document.getElementById(id).getContext("2d");
+  const img = ctx.createImageData(32, 32);
+  let bit = 24 * 8;
+  for (let px = 0; px < 1024; px++) {
+    let idx = 0;
+    for (let j = 0; j < 3; j++) {
+      idx = (idx << 1) | ((raw[bit >> 3] >> (7 - (bit & 7))) & 1); bit++;
+    }
+    const [r, g, b] = pal[idx];
+    img.data.set([r, g, b, 255], px * 4);
+  }
+  ctx.putImageData(img, 0, 0);
+}
+drawSprite("sprA"); drawSprite("sprB");
+</script>
+
+<div class="foot">
+  <b>Caveats.</b> Encoder and decoder must run the identical model/dtype — the key plus the model
+  identity is the whole secret. Stegotexts are plausible but statistically shifted (detectable by a
+  model-aware adversary); uniform-digit channels leave a rank-histogram tell that entropy-matched
+  coding would erase — at the cost of fixed capacity. Built with Qwen2.5-1.5B on CPU ·
+  <code>calgacus.py</code> (paper) · <code>rankstream.py</code> (layers) · <code>theatre.py</code> ·
+  14 passing tests on a mock LM.
+</div>
+
+</div>
+</body>
+</html>

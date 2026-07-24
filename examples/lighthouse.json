@@ -1,0 +1,13 @@
+{
+  "protocol": "rankstream/1",
+  "model": "Qwen/Qwen2.5-1.5B",
+  "params": {
+    "base_max": 16,
+    "tau": 0.001,
+    "temperature": 1.0
+  },
+  "payload_bytes": 58,
+  "framed_bits": 592,
+  "stegotext": " 553.8g meatballs - what?!\nGrandmas don’t do the numbers in our homes; I don't do a whole 872,9g of soup for them (it seems we should). My sister can’t even begin the thought to do 14kg meat in her soup for everyone on Sunday - we do what needs doing at dinner parties for the masses – or maybe it seems they just get it from my aunt who cooks so well but can make anything. (My uncle was never the dinner guest; just a bit late at our dinners and that.).\nThis morning’s grandmommeau was sooo yummy.\n1 1. ½ oz white pepper salt. This was a generous tablespoon, so maybe I should have used a teaspoon",
+  "stego_token_ids_b64": "3AAAABQAAAAUAAAAEgAAAA0AAAAXAAAARgAAAPEyAADOsQAA4QEAAGgEAAAeAAAAHhMAANecAADzGgAA6QUAAH0FAACNAgAAFwEAAPUTAAAwAQAADwQAAK8oAAAaAAAAZgEAAOkFAACwAwAAjQIAAAgBAAAJEQAA3AAAABcAAAAWAAAAEQAAAAsAAAAYAAAARgAAADsBAADmSgAAcQEAAFEEAABAAQAAEwEAAHETAABGAgAA8QQAADgCAADJCwAAezIAAIYCAAB9BQAA2AUAAFkMAAAXAQAANQ0AADcBAACNAgAA3AAAABAAAAATAAAAtxwAAPEyAAAwAQAAIwQAAOZKAABxAQAAmxMAAIUBAABmHAAA4QEAAEYCAACNAgAAaAQAACgPAACSDgAABgIAACA2AADNJQAAcQEAABcBAACWewAAVQUAANwBAAAcHAAAsAEAAHETAAAnAwAATQQAAHkCAACwAQAA+AEAAE8DAACSwwAAbwMAAOsaAQAFAwAAYAYAAMoCAACGAgAAAQUAABEQAAANAAAAQAEAALoTAAB2kgAAPAIAABUKAAAXAQAAIDYAAMAhAAAaAAAATQQAAAgBAACLCgAA7QwAAAYCAAAPBAAAYR4BAEMBAACtAQAADQAAAMQQAADCBwAAnBkAAOwCAAAGGgAAZu0AAGQKAAAvCwAAPAIAAAUDAABACgAAWiYBAHACAAAQAAAA3AAAABAAAAANAAAA3AAAAM5lAAAUYAAAPhAAACFfAAD1LgAADQAAAEgEAAA8AgAACAEAABdsAABH8AAACwAAAAUDAAAcHAAAZgEAAPEEAABmAgAAywUAAAgBAABEoQAA"
+}

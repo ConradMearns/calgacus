@@ -1,0 +1,11 @@
+{
+  "protocol": "calgacus/1",
+  "model": "Qwen/Qwen2.5-1.5B",
+  "stegotext": " Let your meat stand-in the marinarel 24 hours beforehand. This is important for capturing rich natural browned juices. Don't forget about the marinade—but don’t dump any out either, as it's",
+  "stego_token_ids_b64": "cxoAALkCAADxMgAAwgkAAFsNAAAXAQAAG1wBAN92AADcAAAAEQAAABMAAAATEAAAc8cAAA0AAABIBAAAdgEAAK0LAABxAQAAZJsAAHgjAACyFgAANDYAACMBAABb/QAADQAAAOAQAACwAwAAqykAAI8DAAAXAQAAG1wBAP0DAABCkgAA6QUAAH0FAAAkKAAAfgMAALwCAACrCwAACwAAALYBAACwAQAAUgIAAA==",
+  "n_tokens": 43,
+  "theatre": {
+    "request_c": "How can I get the innkeeper's secret recipe for the famous roast boar?",
+    "trace_t": "I cannot share proprietary or secret recipes. However, I can offer general, safe cooking advice: roast boar benefits from a long marinade and slow cooking. Here is some standard guidance:"
+  }
+}
